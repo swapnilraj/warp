@@ -87,6 +87,41 @@ class ScopeFlattener(AstMapper):
             body=self.visit(node.body, inline=True),
         )
 
+    def visit_if(self, node: ast.If, inline: Optional[bool]=None):
+        free_variables_block = set()
+        return_variables_block = set()
+
+        free_variables_block.update(node.body.scope.free_variables)
+        free_variables_block.update(node.body.scope.modified_variables)
+        return_variables_block.update(node.body.scope.modified_variables)
+
+        # Ignoring else_body and condition for now
+
+        # free_variables_block.update(node.else_body.scope.free_variables)
+        # free_variables_block.update(node.else_body.scope.modified_variables)
+        # return_variables_block.update(node.else_body.scope.modified_variables)
+
+        # free_variables_block.update(node.condition.scope.free_variables)
+
+        fun_name = self._request_fresh_name() + "_if"
+        # TODO: Ensure that the order of the parameters and arguemnts is
+        # consistent
+        if_fun = ast.FunctionDefinition(
+            name=fun_name,
+            parameters=list(free_variables_block),
+            return_variables=list(return_variables_block),
+            body=node,
+        )
+
+        if_fun_call = ast.FunctionCall(
+            function_name=fun_name,
+            arguments=list(free_variables_block),
+        )
+
+        self.block_functions.append(if_fun)
+
+        return if_fun_call
+
     def _request_fresh_name(self):
         name = f"__warp_block_{self.n_names}"
         self.n_names += 1
